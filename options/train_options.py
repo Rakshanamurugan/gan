@@ -35,6 +35,13 @@ class TrainOptions(BaseOptions):
         parser.add_argument('--pool_size', type=int, default=50, help='the size of image buffer that stores previously generated images')
         parser.add_argument('--lr_policy', type=str, default='linear', help='learning rate policy. [linear | step | plateau | cosine]')
         parser.add_argument('--lr_decay_iters', type=int, default=50, help='multiply by a gamma every lr_decay_iters iterations')
+        parser.add_argument('--val_freq',type=int,default=1,help='frequency of validation')
+        parser.add_argument('--enable_validation', action='store_true', help='Enable validation during training')
+        parser.add_argument('--val_dataroot', type=str, default='./datasets/val', help='Path to the validation dataset')
+        # In options/train_options.py or options/base_options.py
+        #parser.add_argument('--val_dataroot', type=str, default='', help='path to validation dataset')
+        #parser.add_argument('--val_freq', type=int, default=500, help='frequency of doing validation')
+        parser.add_argument('--val_batch_size', type=int, default=1, help='batch size for validation')
 
         self.isTrain = True
         return parser

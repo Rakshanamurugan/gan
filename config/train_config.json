@@ -1,0 +1,37 @@
+{
+  "train": {
+    "dataroot": "/media/e210-pc34/System/data2",
+    "name": "mritranslationtraining12",
+    "model": "pix2pix",
+    "n_epochs": 1,
+    "n_epochs_decay": 1,
+    "lr": 0.0001,
+    "dataset_mode": "aligned",
+    "input_nc": 1,
+    "output_nc": 1,
+    "print_freq": 1,
+    "display_freq": 50,
+    "update_html_freq": 100,
+    "save_epoch_freq": 1,
+    "save_latest_freq": 50,
+    "val_freq": 1,
+    "batch_size": 1,
+    "gpu_ids": "0",
+    "checkpoints_dir": "./checkpoints",
+    "direction": "AtoB"
+  },
+  "test": {
+    "dataroot": "/media/e210-pc34/System/data2",
+    "name": "mritranslationtesting",
+    "model": "pix2pix",
+    "dataset_mode": "aligned",
+    "input_nc": 1,
+    "output_nc": 1,
+    "batch_size": 1,
+    "gpu_ids": "0",
+    "checkpoints_dir": "./checkpoints",
+    "direction": "AtoB",
+    "phase": "test",
+    "num_test": 50
+  }
+}

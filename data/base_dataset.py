@@ -88,6 +88,9 @@ def get_transform(opt, params=None, grayscale=False, method=transforms.Interpola
     elif 'scale_width' in opt.preprocess:
         transform_list.append(transforms.Lambda(lambda img: __scale_width(img, opt.load_size, opt.crop_size, method)))
 
+    if 'pad' in opt.preprocess:
+        transform_list.append(transforms.Lambda(lambda img: __pad_if_needed(img, 256)))
+
     if 'crop' in opt.preprocess:
         if params is None:
             transform_list.append(transforms.RandomCrop(opt.crop_size))
@@ -165,3 +168,10 @@ def __print_size_warning(ow, oh, w, h):
               "(%d, %d). This adjustment will be done to all images "
               "whose sizes are not multiples of 4" % (ow, oh, w, h))
         __print_size_warning.has_printed = True
+def __pad_if_needed(img, min_size):
+    """Pad the image with zeros if any dimension is less than min_size."""
+    ow, oh = img.size
+    if ow < min_size or oh < min_size:
+        padding = (0, 0, max(0, min_size - ow), max(0, min_size - oh))
+        img = transforms.functional.pad(img, padding, fill=0)
+    return img

@@ -1,6 +1,34 @@
 import torch
 from .base_model import BaseModel
 from . import networks
+import numpy as np
+import torch.nn.functional as F
+from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+
+
+def calculate_psnr(img1, img2):
+    return peak_signal_noise_ratio(img1, img2)
+
+
+def calculate_ssim(img1, img2):
+    # Ensure the images are in float format
+    img1 = img1.astype(np.float32)
+    img2 = img2.astype(np.float32)
+
+    # Get the data range (for normalized images [0, 1], data_range is 1.0)
+    data_range = img1.max() - img1.min()
+
+    # Get the minimum dimension of the images
+    min_dim = min(img1.shape[0], img1.shape[1])
+
+    # Set win_size to be the largest odd number less than or equal to min_dim
+    win_size = min(7, min_dim // 2 * 2 + 1)
+
+    # Handle the case where images are smaller than 7x7
+    if min_dim < 7:
+        win_size = min_dim // 2 * 2 + 1  # Make sure win_size is odd and <= min_dim
+
+    return structural_similarity(img1, img2, multichannel=True, win_size=win_size, data_range=data_range, channel_axis=-1)
 
 
 class Pix2PixModel(BaseModel):
@@ -86,6 +114,8 @@ class Pix2PixModel(BaseModel):
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
         self.fake_B = self.netG(self.real_A)  # G(A)
+        out = self.fake_B
+        return out
 
     def backward_D(self):
         """Calculate GAN loss for the discriminator"""
@@ -114,14 +144,95 @@ class Pix2PixModel(BaseModel):
         self.loss_G.backward()
 
     def optimize_parameters(self):
-        self.forward()                   # compute fake images: G(A)
-        # update D
+        #print("Optimizing parameters...")
+        self.forward()  # compute fake images: G(A)
+
+        # Update D
         self.set_requires_grad(self.netD, True)  # enable backprop for D
-        self.optimizer_D.zero_grad()     # set D's gradients to zero
-        self.backward_D()                # calculate gradients for D
-        self.optimizer_D.step()          # update D's weights
-        # update G
+        self.optimizer_D.zero_grad()  # set D's gradients to zero
+        self.backward_D()  # calculate gradients for D
+       # print(f"Discriminator loss: {self.loss_D.item()}")
+        self.optimizer_D.step()  # update D's weights
+        #print("Discriminator updated.")
+
+        # Update G
         self.set_requires_grad(self.netD, False)  # D requires no gradients when optimizing G
-        self.optimizer_G.zero_grad()        # set G's gradients to zero
-        self.backward_G()                   # calculate graidents for G
-        self.optimizer_G.step()             # update G's weights
+        self.optimizer_G.zero_grad()  # set G's gradients to zero
+        self.backward_G()  # calculate gradients for G
+        #print(f"Generator loss: {self.loss_G.item()}")
+        self.optimizer_G.step()  # update G's weights
+       # print("Generator updated.")
+
+    def train(self):
+        """Set model to training mode"""
+        print("Entering training mode...")
+        self.netG.train()
+        self.netD.train()
+
+
+
+    def validate(self, val_dataset):
+        """Run validation"""
+        self.eval()  # Set model to evaluation mode
+        total_loss_G_GAN = 0
+        total_loss_G_L1 = 0
+        total_loss_D_real = 0
+        total_loss_D_fake = 0
+        total_psnr = 0
+        total_ssim = 0
+        num_batches = 0
+
+        with torch.no_grad():
+            for i, data in enumerate(val_dataset):
+                self.set_input(data)
+                self.forward()
+                self.compute_visuals()
+
+                # Calculate GAN loss for the generator
+                fake_AB = torch.cat((self.real_A, self.fake_B), 1)
+                pred_fake = self.netD(fake_AB)
+                loss_G_GAN = self.criterionGAN(pred_fake, True)
+                total_loss_G_GAN += loss_G_GAN.item()
+
+                # Calculate L1 loss for the generator
+                loss_G_L1 = self.criterionL1(self.fake_B, self.real_B) * self.opt.lambda_L1
+                total_loss_G_L1 += loss_G_L1.item()
+
+                # Calculate GAN loss for the discriminator
+                # Fake; stop backprop to the generator by detaching fake_B
+                fake_AB = torch.cat((self.real_A, self.fake_B), 1)
+                pred_fake = self.netD(fake_AB.detach())
+                loss_D_fake = self.criterionGAN(pred_fake, False)
+                total_loss_D_fake += loss_D_fake.item()
+
+                # Real
+                real_AB = torch.cat((self.real_A, self.real_B), 1)
+                pred_real = self.netD(real_AB)
+                loss_D_real = self.criterionGAN(pred_real, True)
+                total_loss_D_real += loss_D_real.item()
+
+                # Calculate PSNR and SSIM
+                fake_B_np = self.fake_B.cpu().numpy().transpose(0, 2, 3, 1)
+                real_B_np = self.real_B.cpu().numpy().transpose(0, 2, 3, 1)
+                for fake_img, real_img in zip(fake_B_np, real_B_np):
+                    total_psnr += calculate_psnr(fake_img, real_img)
+                    total_ssim += calculate_ssim(fake_img, real_img)
+
+                num_batches += 1
+
+        avg_loss_G_GAN = total_loss_G_GAN / num_batches
+        avg_loss_G_L1 = total_loss_G_L1 / num_batches
+        avg_loss_D_real = total_loss_D_real / num_batches
+        avg_loss_D_fake = total_loss_D_fake / num_batches
+        avg_psnr = total_psnr / num_batches
+        avg_ssim = total_ssim / num_batches
+
+        # Log average losses
+        print(
+            f"Validation: Avg G_GAN Loss: {avg_loss_G_GAN}, Avg G_L1 Loss: {avg_loss_G_L1}, Avg D_real Loss: {avg_loss_D_real}, Avg D_fake Loss: {avg_loss_D_fake}, Avg PSNR: {avg_psnr}, Avg SSIM: {avg_ssim}")
+
+        self.train()  # Set model back to training mode
+
+        # Return validation losses for early stopping or model checkpointing
+        return {'G_GAN': avg_loss_G_GAN, 'G_L1': avg_loss_G_L1, 'D_real': avg_loss_D_real, 'D_fake': avg_loss_D_fake, 'PSNR': avg_psnr, 'SSIM': avg_ssim}
+

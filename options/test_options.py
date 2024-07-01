@@ -1,5 +1,5 @@
 from .base_options import BaseOptions
-
+import json
 
 class TestOptions(BaseOptions):
     """This class includes test options.
@@ -21,3 +21,4 @@ class TestOptions(BaseOptions):
         parser.set_defaults(load_size=parser.get_default('crop_size'))
         self.isTrain = False
         return parser
+

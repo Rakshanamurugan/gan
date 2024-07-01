@@ -4,7 +4,7 @@ from util import util
 import torch
 import models
 import data
-
+import json
 
 class BaseOptions():
     """This class defines options used during both training and test time.
@@ -20,7 +20,7 @@ class BaseOptions():
     def initialize(self, parser):
         """Define the common options that are used in both training and test."""
         # basic parameters
-        parser.add_argument('--dataroot', required=True, help='path to images (should have subfolders trainA, trainB, valA, valB, etc)')
+        parser.add_argument('--dataroot', required=False, help='path to images (should have subfolders trainA, trainB, valA, valB, etc)')
         parser.add_argument('--name', type=str, default='experiment_name', help='name of the experiment. It decides where to store samples and models')
         parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
         parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
@@ -46,7 +46,7 @@ class BaseOptions():
         parser.add_argument('--load_size', type=int, default=286, help='scale images to this size')
         parser.add_argument('--crop_size', type=int, default=256, help='then crop to this size')
         parser.add_argument('--max_dataset_size', type=int, default=float("inf"), help='Maximum number of samples allowed per dataset. If the dataset directory contains more than max_dataset_size, only a subset is loaded.')
-        parser.add_argument('--preprocess', type=str, default='resize_and_crop', help='scaling and cropping of images at load time [resize_and_crop | crop | scale_width | scale_width_and_crop | none]')
+        parser.add_argument('--preprocess', type=str, default='resize_and_crop', help='scaling and cropping of images at load time [resize_and_crop | crop | scale_width | scale_width_and_crop | pad | none]')
         parser.add_argument('--no_flip', action='store_true', help='if specified, do not flip the images for data augmentation')
         parser.add_argument('--display_winsize', type=int, default=256, help='display window size for both visdom and HTML')
         # additional parameters
@@ -57,6 +57,9 @@ class BaseOptions():
         # wandb parameters
         parser.add_argument('--use_wandb', action='store_true', help='if specified, then init wandb logging')
         parser.add_argument('--wandb_project_name', type=str, default='CycleGAN-and-pix2pix', help='specify wandb project name')
+        # Add a new argument for the config file
+        parser.add_argument('--config', type=str, help='path to the configuration file')
+
         self.initialized = True
         return parser
 
@@ -73,16 +76,26 @@ class BaseOptions():
         # get the basic options
         opt, _ = parser.parse_known_args()
 
-        # modify model-related parser options
+        if opt.config:
+            with open(opt.config, 'r') as f:
+                config = json.load(f)
+                print("Loaded config:", config)  # Add this line
+                parser.set_defaults(**config)
+
+        # Get the updated opt
+        opt = parser.parse_args()
+
+        # Modify model-related parser options
         model_name = opt.model
         model_option_setter = models.get_option_setter(model_name)
         parser = model_option_setter(parser, self.isTrain)
-        opt, _ = parser.parse_known_args()  # parse again with new defaults
+        opt = parser.parse_args()
 
-        # modify dataset-related parser options
+        # Modify dataset-related parser options
         dataset_name = opt.dataset_mode
         dataset_option_setter = data.get_option_setter(dataset_name)
         parser = dataset_option_setter(parser, self.isTrain)
+
 
         # save and return the parser
         self.parser = parser
@@ -122,6 +135,7 @@ class BaseOptions():
         if opt.suffix:
             suffix = ('_' + opt.suffix.format(**vars(opt))) if opt.suffix != '' else ''
             opt.name = opt.name + suffix
+        print("norm options:", opt.norm)
 
         self.print_options(opt)
 

@@ -9,6 +9,7 @@ You need to implement the following functions:
     -- <modify_commandline_options>:　Add dataset-specific options and rewrite default values for existing options.
     -- <__init__>: Initialize this dataset class.
     -- <__getitem__>: Return a data point and its metadata information.
+    -- <__getitem__>: Return a data point and its metadata information.
     -- <__len__>: Return the number of images.
 """
 from data.base_dataset import BaseDataset, get_transform

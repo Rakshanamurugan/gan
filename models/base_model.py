@@ -88,12 +88,21 @@ class BaseModel(ABC):
             self.load_networks(load_suffix)
         self.print_networks(opt.verbose)
 
+    def train(self):
+        """Set model to training mode."""
+        for name in self.model_names:
+            if isinstance(name, str):
+                net = getattr(self, 'net' + name)
+                net.train()
+
     def eval(self):
-        """Make models eval mode during test time"""
+        """Set model to evaluation mode."""
+        print("Setting model to evaluation mode...")
         for name in self.model_names:
             if isinstance(name, str):
                 net = getattr(self, 'net' + name)
                 net.eval()
+        print("Model is now in evaluation mode.")
 
     def test(self):
         """Forward function used in test time.
@@ -134,12 +143,14 @@ class BaseModel(ABC):
         return visual_ret
 
     def get_current_losses(self):
-        """Return traning losses / errors. train.py will print out these errors on console, and save them to a file"""
+        """Return training losses / errors. train.py will print out these errors on console, and save them to a file"""
         errors_ret = OrderedDict()
         for name in self.loss_names:
             if isinstance(name, str):
                 errors_ret[name] = float(getattr(self, 'loss_' + name))  # float(...) works for both scalar tensor and float number
         return errors_ret
+
+
 
     def save_networks(self, epoch):
         """Save all the networks to the disk.
@@ -217,7 +228,7 @@ class BaseModel(ABC):
         print('-----------------------------------------------')
 
     def set_requires_grad(self, nets, requires_grad=False):
-        """Set requies_grad=Fasle for all the networks to avoid unnecessary computations
+        """Set requires_grad=False for all the networks to avoid unnecessary computations
         Parameters:
             nets (network list)   -- a list of networks
             requires_grad (bool)  -- whether the networks require gradients or not
