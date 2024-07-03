@@ -214,10 +214,22 @@ class Pix2PixModel(BaseModel):
                 # Calculate PSNR and SSIM
                 fake_B_np = self.fake_B.cpu().numpy().transpose(0, 2, 3, 1)
                 real_B_np = self.real_B.cpu().numpy().transpose(0, 2, 3, 1)
-                for fake_img, real_img in zip(fake_B_np, real_B_np):
-                    total_psnr += calculate_psnr(fake_img, real_img)
-                    total_ssim += calculate_ssim(fake_img, real_img)
 
+                batch_psnr = 0
+                batch_ssim = 0
+
+                for fake_img, real_img in zip(fake_B_np, real_B_np):
+                    psnr =calculate_psnr(fake_img, real_img)
+                    ssim = calculate_ssim(fake_img, real_img)
+                    #print(f"PSNR: {psnr}, SSIM: {ssim}")
+
+                    batch_psnr += psnr
+                    batch_ssim += ssim
+                avg_batch_psnr = batch_psnr / len(fake_B_np)
+                avg_batch_ssim = batch_ssim / len(fake_B_np)
+                #print(f"Batch PSNR: {avg_batch_psnr}, Batch SSIM: {avg_batch_ssim}")
+                total_psnr += avg_batch_psnr
+                total_ssim += avg_batch_ssim
                 num_batches += 1
 
         avg_loss_G_GAN = total_loss_G_GAN / num_batches
