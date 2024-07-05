@@ -1,7 +1,5 @@
 import time
-
 import wandb
-
 from options.train_options import TrainOptions
 from data import create_dataset
 from models import create_model
@@ -23,8 +21,7 @@ if __name__ == '__main__':
     model = create_model(opt)  # create a model given opt.model and other options
     model.setup(opt)  # regular setup: load and print networks; create schedulers
     visualizer = Visualizer(opt)  # create a visualizer that display/save images and plots
-    #writer = SummaryWriter(log_dir=opt.checkpoints_dir)
-    wandb.init(project='pix2pix', config=opt, name='trail_806_trainingimages')
+    wandb.init(project='pix2pix', config=opt, name='trail20_trainingimages')
 
     # # Visualize a few training images to ensure correctness
     # print("Visualizing the first 5 training images...")
@@ -68,9 +65,8 @@ if __name__ == '__main__':
     best_ssim = -float('inf')
     patience = 10
     epochs_no_improve = 0
-    val_loss_counter = 0
 
-    start = time.time()
+
     for epoch in range(opt.epoch_count, opt.n_epochs + opt.n_epochs_decay + 1):
         epoch_start_time = time.time()  # timer for entire epoch
         iter_data_time = time.time()  # timer for data loading per iteration
@@ -132,17 +128,19 @@ if __name__ == '__main__':
                        "SSIM_loss": val_losses['SSIM']})
 
             # Check for improvement
-            if avg_psnr > best_psnr:
+            if avg_psnr > best_psnr and avg_ssim > best_ssim:
                 best_psnr = avg_psnr
                 best_ssim = avg_ssim
                 epochs_no_improve = 0
-                print(f"Validation PSNR improved to {avg_psnr}, saving model.")
+                print(f"New best model saved! PSNR: {avg_psnr:.4f}, SSIM: {avg_ssim:.4f}")
                 model.save_networks('best')
-            elif avg_ssim > best_ssim:
-                best_ssim = avg_ssim
-                epochs_no_improve = 0
-                print(f"Validation SSIM improved to {avg_ssim}, saving model.")
-                model.save_networks('best')
+
+                # Log best PSNR and SSIM to wandb
+                wandb.log({
+                    "best_PSNR": best_psnr,
+                    "best_SSIM": best_ssim
+                })
+
             else:
                 epochs_no_improve += 1
                 if epochs_no_improve == patience:
@@ -159,6 +157,4 @@ if __name__ == '__main__':
 
 
 
-end =time.time()
-totaltime=end-start
-print(f'Total time for traininga nd validation : {totaltime} seconds')
+
