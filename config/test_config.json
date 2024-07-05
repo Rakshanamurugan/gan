@@ -13,7 +13,7 @@
   "no_dropout": false,
   "direction": "AtoB",
   "batch_size": 1,
-  "epoch": "latest",
+  "epoch": "best",
   "load_iter": 0,
   "verbose": false,
   "wandb_project_name": "CycleGAN-and-pix2pix",
