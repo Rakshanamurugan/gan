@@ -22,3 +22,4 @@ class TestOptions(BaseOptions):
         self.isTrain = False
         return parser
 
+
